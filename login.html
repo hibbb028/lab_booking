@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Login</title>
+  <style>
+    body {
+      background: url("{{ url_for('static', filename='login_bg.jpg') }}") no-repeat center center fixed;
+      background-size: cover;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: Arial, sans-serif;
+      color: white;
+      flex-direction: column;
+    }
+     h1 {
+      font-size: 50px;
+      font-weight: bold;
+      text-align: center;
+      text-shadow: 3px 3px 8px black;
+      margin-top: 30px; /* adjust how far from top */
+    }
+
+    .login-container {
+      flex: 1; /* takes remaining space */
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .login-box {
+      background: rgba(0, 0, 0, 0.7);
+      padding: 40px;
+      border-radius: 15px;
+      text-align: center;
+    }
+    input {
+      width: 80%;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 5px;
+      border: none;
+    }
+    button {
+      padding: 10px 30px;
+      border: none;
+      background: #4caf50;
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>Login</h1>
+  <div class="login-box">
+    <h2>Lab Booking Login</h2>
+    <form method="POST">
+      <input type="text" name="username" placeholder="Username" required><br>
+      <input type="password" name="password" placeholder="Password" required><br>
+      <button type="submit">Login</button>
+    </form>
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <p>{{ messages[0] }}</p>
+      {% endif %}
+    {% endwith %}
+  </div>
+</body>
+</html>
+
+
+
