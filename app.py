@@ -1,13 +1,107 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+import shutil
 import sqlite3
+from flask import Flask, render_template, request, redirect, url_for, session, flash
 from datetime import datetime
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "lab_booking.db")
 
 app = Flask(__name__)
 app.secret_key = "secret123"
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ORIGINAL_DB = os.path.join(BASE_DIR, "lab_booking.db")
+
+# Use /tmp for writable database in Vercel (Linux) serverless environments
+if os.name == 'nt':
+    DB_PATH = ORIGINAL_DB
+else:
+    DB_PATH = "/tmp/lab_booking.db"
+
+def init_db(db_file):
+    conn = sqlite3.connect(db_file)
+    cur = conn.cursor()
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL
+    )
+    """)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS labs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        day TEXT NOT NULL,
+        hour INTEGER NOT NULL,
+        lab_name TEXT NOT NULL,
+        is_booked INTEGER DEFAULT 0,
+        booked_by TEXT DEFAULT NULL
+    )
+    """)
+    cur.execute("SELECT COUNT(*) FROM users")
+    if cur.fetchone()[0] == 0:
+        users_data = [
+            ("student1", "pass123"),
+            ("student2", "pass456")
+        ]
+        cur.executemany("INSERT INTO users (username, password) VALUES (?, ?)", users_data)
+        
+        labs_data = [
+            ("Monday", 3, "CCF"),
+            ("Monday", 4, "CCF"),
+            ("Monday", 5, "CCF"),
+            ("Monday", 6, "CCF"),
+            ("Monday", 1, "AI Programming Lab1"),
+            ("Monday", 2, "AI Programming Lab1"),
+            ("Monday", 1, "AI Programming Lab2"),
+            ("Monday", 2, "AI Programming Lab2"),
+            ("Monday", 3, "AI Programming Lab2"),
+            ("Monday", 3, "System Lab1"),
+            ("Monday", 4, "System Lab1"),
+            ("Monday", 1, "System Lab2"),
+            ("Monday", 2, "System Lab2"),
+            ("Tuesday", 3, "CCF"),
+            ("Wednesday", 1, "System Lab1"),
+            ("Wednesday", 2, "System Lab1"),
+            ("Wednesday", 3, "System Lab1"),
+            ("Wednesday", 4, "System Lab1"),
+            ("Wednesday", 1, "AI Programming Lab1"),
+            ("Wednesday", 1, "AI Programming Lab2"),
+            ("Wednesday", 5, "AI Programming Lab2"),
+            ("Wednesday", 6, "AI Programming Lab2"),
+            ("Wednesday", 1, "System Lab2"),
+            ("Wednesday", 2, "System Lab2"),
+            ("Thursday", 4, "AI Programming Lab1"),
+            ("Thursday", 5, "AI Programming Lab1"),
+            ("Thursday", 6, "AI Programming Lab1"),
+            ("Thursday", 4, "AI Programming Lab2"),
+            ("Friday", 3, "CCF"),
+            ("Friday", 4, "AI Programming Lab1"),
+            ("Friday", 5, "AI Programming Lab1"),
+            ("Friday", 6, "AI Programming Lab1"),
+            ("Friday", 1, "System Lab1"),
+            ("Friday", 5, "System Lab1"),
+            ("Friday", 6, "System Lab1"),
+            ("Friday", 1, "System Lab2")
+        ]
+        cur.executemany("INSERT INTO labs (day, hour, lab_name, is_booked) VALUES (?, ?, ?, 0)", labs_data)
+        conn.commit()
+    conn.close()
+
+def get_db():
+    if DB_PATH != ORIGINAL_DB:
+        if not os.path.exists(DB_PATH):
+            if os.path.exists(ORIGINAL_DB):
+                try:
+                    shutil.copyfile(ORIGINAL_DB, DB_PATH)
+                except Exception:
+                    init_db(DB_PATH)
+            else:
+                init_db(DB_PATH)
+    else:
+        if not os.path.exists(ORIGINAL_DB):
+            init_db(ORIGINAL_DB)
+            
+    conn = sqlite3.connect(DB_PATH)
+    return conn
 
 # -------------------- LOGIN PAGE --------------------
 @app.route("/", methods=["GET", "POST"])
@@ -17,7 +111,7 @@ def login():
         username = request.form["username"]
         password = request.form["password"]
 
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db()
         cur = conn.cursor()
         cur.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password))
         user = cur.fetchone()
@@ -52,7 +146,7 @@ def labs(day, hour):
     if "user" not in session:
         return redirect(url_for("login"))
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db()
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
     cur.execute("SELECT * FROM labs WHERE day=? AND hour=?", (day, hour))
@@ -69,10 +163,10 @@ def toggle_booking(lab_id, day, hour):
 
     current_user = session["user"]
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db()
     cur = conn.cursor()
 
-    # Ensure booked_by column exists (safe if already added)
+    # Ensure booked_by column exists
     try:
         cur.execute("ALTER TABLE labs ADD COLUMN booked_by TEXT")
     except:
@@ -97,7 +191,7 @@ def toggle_booking(lab_id, day, hour):
 
     # If booked by current user — allow cancellation
     elif booked_by == current_user:
-        cur.execute("UPDATE labs SET is_booked=0, booked_by=NULL WHERE id=?", (lab_id,))
+        cur.execute("UPDATE labs SET is_booked=0, booked_by=NULL WHERE id=?", (current_user, lab_id))
         conn.commit()
         flash("❌ Your booking has been cancelled.", "info")
 
@@ -117,21 +211,3 @@ def logout():
 # -------------------- MAIN --------------------
 if __name__ == "__main__":
     app.run(debug=True)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
