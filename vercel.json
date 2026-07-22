@@ -1,4 +1,9 @@
 {
+  "functions": {
+    "api/index.py": {
+      "includeFiles": "templates/**, static/**, lab_booking.db"
+    }
+  },
   "rewrites": [
     {
       "source": "/(.*)",
