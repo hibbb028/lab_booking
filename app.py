@@ -1,6 +1,10 @@
+import os
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 import sqlite3
 from datetime import datetime
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "lab_booking.db")
 
 app = Flask(__name__)
 app.secret_key = "secret123"
@@ -13,7 +17,7 @@ def login():
         username = request.form["username"]
         password = request.form["password"]
 
-        conn = sqlite3.connect("lab_booking.db")
+        conn = sqlite3.connect(DB_PATH)
         cur = conn.cursor()
         cur.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password))
         user = cur.fetchone()
@@ -48,7 +52,7 @@ def labs(day, hour):
     if "user" not in session:
         return redirect(url_for("login"))
 
-    conn = sqlite3.connect("lab_booking.db")
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
     cur.execute("SELECT * FROM labs WHERE day=? AND hour=?", (day, hour))
@@ -65,7 +69,7 @@ def toggle_booking(lab_id, day, hour):
 
     current_user = session["user"]
 
-    conn = sqlite3.connect("lab_booking.db")
+    conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
 
     # Ensure booked_by column exists (safe if already added)
